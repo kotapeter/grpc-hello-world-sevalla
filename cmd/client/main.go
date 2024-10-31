@@ -3,20 +3,23 @@ package main
 import (
 	"context"
 	"log"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
+	"net/http"
+	"os"
 
 	"github.com/cshep4/grpc-course/grpc-hello-world-sevalla/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
 	ctx := context.Background()
 
-	conn, err := grpc.Dial("localhost:50051",
+	host, ok := os.LookupEnv("GRPC_HOST")
+	if !ok {
+		host = "localhost:50051"
+	}
+	conn, err := grpc.NewClient(host,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -25,14 +28,27 @@ func main() {
 
 	client := proto.NewHelloServiceClient(conn)
 
-	res, err := client.SayHello(ctx, &proto.SayHelloRequest{Name: "Chris"})
-	if err != nil {
-		status, ok := status.FromError(err)
-		if ok {
-			log.Fatalf("status code: %s, error: %s", status.Code().String(), status.Message())
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		res, err := client.SayHello(ctx, &proto.SayHelloRequest{Name: "Chris"})
+		if err != nil {
+			http.Error(w, err.Error(), 500)
 		}
-		log.Fatal(err)
+
+		// return file contents to user
+		if _, err := w.Write([]byte(res.GetMessage())); err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+	})
+
+	port, ok := os.LookupEnv("PORT")
+	if !ok {
+		port = "8080"
 	}
 
-	log.Printf("response received: %s", res.Message)
+	log.Printf("starting http server on address: :%s", port)
+
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatal(err)
+	}
 }
