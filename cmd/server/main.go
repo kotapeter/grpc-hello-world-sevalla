@@ -34,17 +34,20 @@ func run(ctx context.Context) error {
 
 	proto.RegisterHelloServiceServer(grpcServer, &helloService)
 
-	const addr = ":50051"
+	port, ok := os.LookupEnv("PORT")
+	if !ok {
+		port = "50051"
+	}
 
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		lis, err := net.Listen("tcp", addr)
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%s", port))
 		if err != nil {
-			return fmt.Errorf("failed to listen on address %q: %w", addr, err)
+			return fmt.Errorf("failed to listen on address %q: %w", port, err)
 		}
 
-		slog.Info("starting grpc server on address", slog.String("address", addr))
+		slog.Info("starting grpc server on address", slog.String("address", port))
 
 		if err := grpcServer.Serve(lis); err != nil {
 			return fmt.Errorf("failed to serve grpc service: %w", err)
