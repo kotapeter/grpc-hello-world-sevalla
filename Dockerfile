@@ -4,7 +4,7 @@ WORKDIR /build
 
 COPY . .
 
-RUN GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o /hello-client ./cmd/client
+RUN GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o /hello-client
 
 FROM alpine as release
 
